@@ -61,7 +61,7 @@
 
 <body>
     <input type="file" name="hmm_out" id="hmm">
-    <a id="filter"></a>
+    <a id="filter"></a><input type="checkbox" id="treshold" name="treshold" value="treshold"> Show above treshold information</input>
     <h2 id="information"></h2>
     <div id="chart"></div>
     <!-- Bootstrap Modal -->
@@ -217,10 +217,12 @@
                 document.getElementById("information").innerHTML = "Number of domains: " + number_of_domains + " | Number of genomes: " + number_of_genomes;
 
                 addFilter(domains);
-                visualizeDomains(domains);
-                visualizeEValueDistribution(domains);
-                visualizeGenomes(domains);
-                visualizeGenomeDistributionBoxplots(domains);
+                // add event listener to the checkbox
+                document.getElementById("treshold").addEventListener('change', function (e) {
+                    applyFilter(domains);
+                });
+
+                renderDomains(domains);
 
                 console.log(q_file_to_sequence);
                 // combine all sequences
@@ -269,12 +271,14 @@
 
             // add an event listener to the select element
             select.addEventListener('change', function (e) {
-                var selected_genome = e.target.value;
+                applyFilter(domains);                
+            });
+        }
+
+        function applyFilter(domains) {
+            var selected_genome = document.getElementById("genome").value;
                 if (selected_genome === "all") {
-                    visualizeDomains(domains);
-                    visualizeEValueDistribution(domains);
-                    visualizeGenomes(domains);
-                    visualizeGenomeDistributionBoxplots(domains);
+                    renderDomains(domains);
                     return;
                 }
                 var filtered_domains = [];
@@ -297,14 +301,25 @@
                     }
                     filtered_domains.push(domain);
                 }
-                visualizeDomains(filtered_domains);
-                visualizeEValueDistribution(filtered_domains);
-                visualizeGenomes(domains);
-                visualizeGenomeDistributionBoxplots(domains);
-            });
+                renderDomains(domains, filtered_domains);
         }
 
-        function visualizeDomains(domains) {
+        function renderDomains(domains, filtered_domains) {
+            treshold_checked = document.getElementById("treshold").checked;
+            if (filtered_domains) {
+                visualizeDomains(filtered_domains, treshold_checked);
+                //visualizeEValueDistribution(filtered_domains, treshold_checked);
+                visualizeGenomes(domains, treshold_checked);
+                visualizeGenomeDistributionBoxplots(domains, treshold_checked);
+            } else {
+                visualizeDomains(domains, treshold_checked);
+                //visualizeEValueDistribution(domains, treshold_checked);
+                visualizeGenomes(domains, treshold_checked);
+                visualizeGenomeDistributionBoxplots(domains, treshold_checked);
+            }
+        }
+
+        function visualizeDomains(domains, treshold_checked) {
             // Clear previous chart
             d3.select("#chart").html("");
 
@@ -351,8 +366,15 @@
 
             // Set domains
             x.domain(domains.map(function (d) { return d.accession + " (" + d.query_name + ")"; }));
-            y.domain([0, d3.max(domains, function (d) { return d.hits.length + d.above_inclusion_threshold.length; })]);
+            let max;
+            if (treshold_checked) {
+                max = d3.max(domains, function (d) { return d.hits.length + d.above_inclusion_threshold.length; });
+            } else {
+                max = d3.max(domains, function (d) { return d.hits.length; });
+            }
+            y.domain([0, max]);
 
+            if (treshold_checked) {
             // Draw bars above threshold
             svg.selectAll(".bar-above-threshold")
                 .data(domains)
@@ -375,6 +397,7 @@
                     $("#hits").html(table);
                     $("#hitsModal").modal('show');
                 });
+            }
 
             // Draw bars below threshold
             svg.selectAll(".bar-below-threshold")
@@ -442,7 +465,7 @@
                 .attr("text-anchor", "middle")
                 .style("font-size", "16px")
                 .text("Hits per domain");
-
+            if (treshold_checked) {
             // Add legend
             var legend = svg.append("g")
                 .attr("font-family", "sans-serif")
@@ -452,7 +475,7 @@
                 .data(["Above Threshold", "Below Threshold"])
                 .enter().append("g")
                 .attr("transform", function (d, i) { return "translate(0," + i * 20 + ")"; });
-
+            
             legend.append("rect")
                 .attr("x", width - 19)
                 .attr("width", 19)
@@ -464,10 +487,10 @@
                 .attr("y", 9.5)
                 .attr("dy", "0.32em")
                 .text(function (d) { return d; });
-
+            }
         }
 
-        function visualizeGenomes(domains) {
+        function visualizeGenomes(domains, treshold_checked) {
 
             // Set up dimensions
             var margin = { top: 50, right: 30, bottom: 200, left: 60 };
@@ -517,11 +540,18 @@
             var y = d3.scaleLinear()
                 .range([height, 0]);
 
+            let max;
+            if (treshold_checked) {
+                max = d3.max(genome_hits, function (d) { return d.hits + d.above_inclusion_threshold; });
+            } else {
+                max = d3.max(genome_hits, function (d) { return d.hits; });
+            }
+
             // Set domains
             x.domain(genome_hits.map(function (d) { return d.genome; }));
-            y.domain([0, d3.max(genome_hits, function (d) { return d.hits + d.above_inclusion_threshold; })]);
+            y.domain([0, max]);
 
-
+            if (treshold_checked) {
             // Draw bars above threshold
             svg.selectAll(".bar-above-threshold")
                 .data(genome_hits)
@@ -531,7 +561,7 @@
                 .attr("width", x.bandwidth())
                 .attr("y", function (d) { return y(d.above_inclusion_threshold + d.hits); })
                 .attr("height", function (d) { return height - y(d.above_inclusion_threshold); });
-
+            }
             // Draw bars below threshold
             svg.selectAll(".bar-below-threshold")
                 .data(genome_hits)
@@ -593,7 +623,7 @@
                 .attr("text-anchor", "middle")
                 .style("font-size", "16px")
                 .text("Hits per genome");
-
+            if (treshold_checked) {
             // Add legend
             var legend = svg.append("g")
                 .attr("font-family", "sans-serif")
@@ -615,9 +645,10 @@
                 .attr("y", 9.5)
                 .attr("dy", "0.32em")
                 .text(function (d) { return d; });
+            }
         }
 
-        function visualizeEValueDistribution(domains) {
+        function visualizeEValueDistribution(domains, treshold_checked) {
             // Set the dimensions and margins of the graph
             var margin = { top: 50, right: 30, bottom: 100, left: 60 };
             var windowWidth = chart_width;
@@ -732,7 +763,7 @@
                 .style("font-size", "16px")
                 .text("E-Value Distribution per Domain (below threshold)");
         }
-        function visualizeGenomeDistributionBoxplots(domains) {
+        function visualizeGenomeDistributionBoxplots(domains, treshold_checked) {
             // Count number of hits per genome
             var genome_hits = [];
             for (var i = 0; i < domains.length; i++) {
@@ -789,14 +820,26 @@
             var statsHits = computeStats(hits);
             var statsAboveThreshold = computeStats(above_inclusion_threshold);
 
+            if (treshold_checked) {
+                var max = Math.max(d3.max(hits), d3.max(above_inclusion_threshold), statsHits.max, statsAboveThreshold.max);
+            } else {
+                var max = Math.max(d3.max(hits), statsHits.max);
+            }
+
             // Set up scales
             var y = d3.scaleLinear()
-                .domain([0, Math.max(d3.max(hits), d3.max(above_inclusion_threshold), statsHits.max, statsAboveThreshold.max)])
+                .domain([0, max])
                 .range([height, 0]);
+            var x_ticks = [];
+            if (treshold_checked) {
+                x_ticks = ['Below Threshold', 'Above Threshold'];
+            } else {
+                x_ticks = ['Below Threshold'];
+            }
 
             var x = d3.scaleBand()
                 .range([0, width])
-                .domain(['Below Threshold', 'Above Threshold'])
+                .domain(x_ticks)
                 .padding(0.5);
 
             // Add X axis
@@ -881,6 +924,7 @@
 
             // Draw boxplots
             drawBoxPlot(statsHits, x('Below Threshold'), "steelblue", genome_hits.map(g => [g.genome, g.hits]));
+            if (treshold_checked)
             drawBoxPlot(statsAboveThreshold, x('Above Threshold'), "firebrick", genome_hits.map(g => [g.genome, g.above_inclusion_threshold]));
 
             // Add X axis label
