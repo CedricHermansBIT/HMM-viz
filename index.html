@@ -880,8 +880,8 @@
             }
 
             // Draw boxplots
-            drawBoxPlot(statsHits, x('Below Threshold'), "#69b3a2", genome_hits.map(g => [g.genome, g.hits]));
-            drawBoxPlot(statsAboveThreshold, x('Above Threshold'), "#4c8bf5", genome_hits.map(g => [g.genome, g.above_inclusion_threshold]));
+            drawBoxPlot(statsHits, x('Below Threshold'), "steelblue", genome_hits.map(g => [g.genome, g.hits]));
+            drawBoxPlot(statsAboveThreshold, x('Above Threshold'), "firebrick", genome_hits.map(g => [g.genome, g.above_inclusion_threshold]));
 
             // Add X axis label
             svg.append("text")
